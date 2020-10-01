@@ -74,7 +74,7 @@ namespace RunAsService {
 
         private static bool IsExecutablePath(string path) {
             var extension = Path.GetExtension(path);
-            return File.Exists(path) && (extension == ".exe" || extension == ".com");
+            return File.Exists(path) && (extension == ".exe" || extension == ".com" || extension == ".bat" || extension == ".cmd");
         }
 
         private static int GetExecutablePathIndex(string[] elements) {
