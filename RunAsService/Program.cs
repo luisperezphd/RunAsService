@@ -141,14 +141,14 @@ namespace RunAsService {
                         if(Any(ServiceController.GetServices(), o => o.ServiceName.Trim().ToLower() == serviceName.Trim().ToLower())) {
                             Console.WriteLine("A service with that name already exists, you must first uninstall the existing service.");
                             Console.WriteLine("You can use the following command to uninstall this service:");
-                            Console.WriteLine(string.Format("     {0} uninstall {1}", GetThisExecutableFilename(), serviceName));
+                            Console.WriteLine($"     {GetThisExecutableFilename()} uninstall {serviceName}");
                             return;
                         }
 
                         InstallService(executableProxyPath + executablePathAndArguments, serviceName, serviceDisplayName);
 
                         Console.WriteLine("Your service has been installed, to start your service type: ");
-                        Console.WriteLine(string.Format(@"      net start ""{0}""", serviceName));
+                        Console.WriteLine($@"      net start ""{serviceName}""");
                     } break;
 
                     #endregion
@@ -165,10 +165,17 @@ namespace RunAsService {
                             return;
                         }
 
-                        var serviceName = string.Join(" ", actionParameters);
+                        var serviceNameOrPath = string.Join(" ", actionParameters);
 
-                        if(!Any(ServiceController.GetServices(), o => o.ServiceName.Trim().ToLower() == serviceName.Trim().ToLower())) {
-                            Console.WriteLine("No service with that name exists.");
+                        string serviceName;
+                        if (File.Exists(serviceNameOrPath)) {
+                            serviceName = Path.GetFileNameWithoutExtension(serviceNameOrPath);
+                        } else {
+                            serviceName = serviceNameOrPath;
+                        }
+
+                        if (!Any(ServiceController.GetServices(), o => o.ServiceName.Trim().ToLower() == serviceName.Trim().ToLower())) {
+                            Console.WriteLine($"No service with the name '{serviceName}' exists.");
                             return;
                         }
 
@@ -184,7 +191,7 @@ namespace RunAsService {
                             return;
                         }
 
-                        Console.WriteLine(string.Format(@"The service ""{0}"" has been successfully uninstalled.", serviceName));
+                        Console.WriteLine($@"The service ""{serviceName}"" has been successfully uninstalled.");
                     } break;
                     #endregion
                 case "-fix":
@@ -223,7 +230,7 @@ namespace RunAsService {
                             serviceCount++;
                         }
 
-                        Console.WriteLine(string.Format("Done. {0} services fixed.", serviceCount));
+                        Console.WriteLine($"Done. {serviceCount} services fixed.");
                     }
                     break;
                     #endregion
@@ -236,7 +243,7 @@ namespace RunAsService {
                         }
 
                         if(!IsExecutablePath(actionParameters[0])) {
-                            Console.WriteLine(string.Format("The first parameter after '{0}' must be the path to the console application, the path you specified was not found: {1}", CONST_RunAsServiceAction, actionParameters[0]));
+                            Console.WriteLine($"The first parameter after '{CONST_RunAsServiceAction}' must be the path to the console application, the path you specified was not found: {actionParameters[0]}");
                             WriteHelpMessage();
                             return;
                         }
@@ -265,7 +272,7 @@ namespace RunAsService {
         private static void WriteHelpMessage() {
             var executableName = GetThisExecutableFilename();
 
-            Console.Write(string.Format(@"
+            Console.Write($@"
 This tool allows you to setup a regular console application to run as 
 it service. Below you will find descriptions and examples of how to do 
 this.
@@ -278,20 +285,20 @@ remain permanently. If you do end up moving this tool use the
 'fixservices' action to fix the existing services.
 (details on how to use 'fixservices' can be found below)
 
-{0}
+{executableName}
     Typing just the name of the tool without specifying any parameters.
     Or specifying incorrect paramters will bring you to this help 
     screen you are currently reading.
 
-{0} install [Name] [Display Name] PathToExecutable
+{executableName} install [Name] [Display Name] PathToExecutable [Args]
     Name
         The name of the service, if none is specified the name will 
         default to the name of the executable.
 
         You might choose to give it a different name than the 
         executable to keep some kind of existing convention, make it 
-        friendlier or make it easier to use commands like 'net start' 
-        and 'net stop'
+        friendlier or make it easier to use with commands like 
+        'net start' and 'net stop'
     
     Display Name
         This is how the service name will be displayed in the windows
@@ -309,11 +316,21 @@ remain permanently. If you do end up moving this tool use the
         Note, the tool will check if this executable exists, if it
         doesn't find it will not install it.
 
-{0} uninstall Name
-    Name
-        The name of the service you would like to uninstall.
+    Args
+        Any arguments that you want to pass to your executable.
 
-{0} fixservices
+{executableName} uninstall NameOrPath
+    NameOrPath
+        The name of the service you would like to uninstall or the path
+        to the executable.
+
+        Using the path of the executable only works if you only used
+        the path of the executable when in you installed the service.
+
+        That is it only works if you didn't specify a Name or Display name
+        when you performed the install action.
+
+{executableName} fixservices
         Use this action if you move this tool. This is because 
         services installed using this tool rely on this tool remaining
         on that computer and at the same location. If you do not call 
@@ -322,22 +339,26 @@ remain permanently. If you do end up moving this tool use the
 
 EXAMPLES
 
-{0} install ""c:\my apps\Myapp.exe""
+{executableName} install ""c:\my apps\Myapp.exe""
         Installs Myapp as a service called 'Myapp'
 
-{0} install ""My Service"" ""c:\my apps\Myapp.exe""
+{executableName} install ""c:\my apps\Myapp.exe"" arg0 arg1
+        Installs Myapp as a service called 'Myapp' passes
+        the arg0 and arg1 to Myapp.exe when it's started.
+
+{executableName} install ""My Service"" ""c:\my apps\Myapp.exe""
         Installs Myapp as a service called ""My Service""
 
-{0} install ""My Service"" ""My Super Cool Service"" ""c:\my apps\Myapp.exe""
+{executableName} install ""My Service"" ""My Super Cool Service"" ""c:\my apps\Myapp.exe""
         Installs Myapp as a service internally called ""My Service""
         when using commands like 'net start' and 'net stop' and shows
         up as ""My Super Cool Service"" in Window's services list.
 
-{0} uninstall ""My Service""
+{executableName} uninstall ""My Service""
         Uninstalls the service.
 
-{0} fixservices
-        Updates services installed using {0} to point to the
+{executableName} fixservices
+        Updates services installed using {executableName} to point to the
         new location.
 
 NOTES
@@ -354,7 +375,7 @@ CREDITS
 
 This tool was created by Luis Perez on April 2011. For more 
 information visit RunAsService.com. Thank you.
-", executableName));
+");
         }
 
         #endregion
