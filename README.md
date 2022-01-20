@@ -21,7 +21,6 @@ RunAsService install [Name] [Display Name] [Work Dir] PathToExecutable [Args]
     Name
         The name of the service, if none is specified the name
         will default to the name of the executable.
-
         You might choose to give it a different name than
         the executable to keep some kind of existing convention,
         make it friendlier or make it easier to use with commands like 
