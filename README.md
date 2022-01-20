@@ -4,7 +4,7 @@ RunAsService is a command line tool that allows you to setup a regular  console 
 This tool requires that .NET Framework 4.5 be already installed on your computer.
 If you do not have .NET Framework 4.5 this tool will display a message and not run.
 
-IMPORTANT: Any services you install using this tool will
+**IMPORTANT**: Any services you install using this tool will
 require that this tool remain on that computer in the same
 location in order for those services to continue functioning. Therefore
 before installing any services you should make sure this tool is
@@ -12,16 +12,17 @@ somewhere where it can remain permanently. If you do end up moving
 this tool use the 'fixservices' action to fix the existing services.
 (details on how to use 'fixservices' can be found below)
 
+## Usage / Syntax
+```
 RunAsService
     Typing just the name of the tool without specifying any parameters.
     Or specifying incorrect paramters will bring you to this help 
     screen you are currently reading.
 
-RunAsService install [Name] [Display Name] PathToExecutable [Args]
+RunAsService install [Name] [Display Name] [Work Dir] PathToExecutable [Args]
     Name
         The name of the service, if none is specified the name
         will default to the name of the executable.
-
         You might choose to give it a different name than
         the executable to keep some kind of existing convention,
         make it friendlier or make it easier to use with commands like 
@@ -36,7 +37,10 @@ RunAsService install [Name] [Display Name] PathToExecutable [Args]
         Generally the display name is longer and more descriptive
         than the name and gives the user a better idea of what
         the service is and/or does.
-
+    Work Dir
+        This is the working directory, where the executable reads and
+        writes data. If you omit it, the default working directory is
+        where the executable is.
     PathToExecutable
         The location of the application you want to run as a service.
         
@@ -63,33 +67,37 @@ RunAsService fixservices
         on that computer and at the same location. If you do not call 
         'fixservices' after moving this tool the existing services 
         installed using this tool will stop functioning.
+```
+## EXAMPLES
 
-# EXAMPLES
-
-RunAsService install "c:\my apps\Myapp.exe"
-
-        Installs Myapp as a service called 'Myapp'
-
-RunAsService install "c:\my apps\Myapp.exe" arg0 arg1
+* `RunAsService install "c:\my apps\Myapp.exe"` <br>
+        Installs Myapp as a service called 'Myapp'<br>
+        
+* `RunAsService install "c:\my apps\Myapp.exe" arg0 arg1` <br>
         Installs Myapp as a service called 'Myapp' passes
         the arg0 and arg1 to Myapp.exe when it's started.
 
-RunAsService install "My Service" "c:\my apps\Myapp.exe"
+* `RunAsService install "c:\my data\path" "c:\my apps\Myapp.exe" arg0 arg1` <br>
+        Installs Myapp as a service called 'Myapp' passes
+        the arg0 and arg1 to Myapp.exe when it's started.<br>
+        Use "c:\my data\path" as the working directory.
+        
+* `RunAsService install "My Service" "c:\my apps\Myapp.exe"` <br>
         Installs Myapp as a service called "My Service"
 
-RunAsService install "My Service" "My Super Cool Service" "c:\my apps\Myapp.exe"
+* `RunAsService install "My Service" "My Super Cool Service" "c:\my apps\Myapp.exe"` <br>
         Installs Myapp as a service internally called "My Service"
         when using commands like 'net start' and 'net stop' and shows
         up as "My Super Cool Service" in Window's services list.
 
-RunAsService uninstall "My Service"
+* `RunAsService uninstall "My Service"` <br>
         Uninstalls the service.
 
-RunAsService fixservices
+* `RunAsService fixservices` <br>
         Updates services installed using RunAsService to point to the
         new location.
 
-# NOTES
+## NOTES
 
 You can use Windows built in commands to start and stop your services. For example you can use:
 
