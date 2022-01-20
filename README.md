@@ -4,7 +4,7 @@ RunAsService is a command line tool that allows you to setup a regular  console 
 This tool requires that .NET Framework 4.5 be already installed on your computer.
 If you do not have .NET Framework 4.5 this tool will display a message and not run.
 
-## IMPORTANT: Any services you install using this tool will
+**IMPORTANT**: Any services you install using this tool will
 require that this tool remain on that computer in the same
 location in order for those services to continue functioning. Therefore
 before installing any services you should make sure this tool is
