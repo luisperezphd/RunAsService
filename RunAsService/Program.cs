@@ -129,7 +129,7 @@ namespace RunAsService {
                         string cmdLine = @Environment.CommandLine;
                         string executableFullPath = Path.GetFullPath(executablePath);
                         var startArg = cmdLine.IndexOf(executablePath) + executablePath.Length; // Start of raw arguments, leading space included.
-                        var executablePathAndArguments = executableFullPath + cmdLine.Substring(startArg);
+                        var executablePathAndArguments = '"' + executableFullPath + '"' + cmdLine.Substring(startArg);
 
                         
 
