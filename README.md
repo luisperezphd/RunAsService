@@ -17,7 +17,7 @@ RunAsService
     Or specifying incorrect paramters will bring you to this help 
     screen you are currently reading.
 
-RunAsService install [Name] [Display Name] PathToExecutable [Args]
+RunAsService install [Name] [Display Name] [Work Dir] PathToExecutable [Args]
     Name
         The name of the service, if none is specified the name
         will default to the name of the executable.
@@ -36,7 +36,10 @@ RunAsService install [Name] [Display Name] PathToExecutable [Args]
         Generally the display name is longer and more descriptive
         than the name and gives the user a better idea of what
         the service is and/or does.
-
+    Work Dir
+        This is the working directory, where the executable reads and
+        writes data. If you omit it, the default working directory is
+        where the executable is.
     PathToExecutable
         The location of the application you want to run as a service.
         
@@ -74,6 +77,11 @@ RunAsService install "c:\my apps\Myapp.exe" arg0 arg1
         Installs Myapp as a service called 'Myapp' passes
         the arg0 and arg1 to Myapp.exe when it's started.
 
+RunAsService install "c:\my data\path" "c:\my apps\Myapp.exe" arg0 arg1
+        Installs Myapp as a service called 'Myapp' passes
+        the arg0 and arg1 to Myapp.exe when it's started.
+        Use "c:\my data\path" as the working directory.
+        
 RunAsService install "My Service" "c:\my apps\Myapp.exe"
         Installs Myapp as a service called "My Service"
 
