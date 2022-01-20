@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Reflection;
 using System.Diagnostics;
 using System.ServiceProcess;
+
 
 namespace RunAsService {
     class RunAsService { 
@@ -14,6 +13,7 @@ namespace RunAsService {
         // TODO: Detect if this executable has moved and update the paths
         // TODO: Add command line options: install uninstall fixservices run help
         // TODO: Confirm that it's a console application?
+        // TODO: Working directory as a parameter
 
         #region DLLImport
 
@@ -86,6 +86,10 @@ namespace RunAsService {
             return -1;
         }
 
+        private static bool StringIsPath(string path){
+            return Path.GetDirectoryName(path) == path;  // return it if it's a valid path string.
+        }
+
         [STAThread]
         static void Main(string[] args) {
             const string CONST_RunAsServiceAction = "runasservice";
@@ -101,6 +105,7 @@ namespace RunAsService {
                     #region
                     {
                         var executablePathIndex = GetExecutablePathIndex(actionParameters);
+                        var workDir = "";
 
                         if(executablePathIndex == -1) {
                             Console.WriteLine("You must specify the path to a console application executable. Nothing in the parameters you specified pointed to an executable.");
@@ -109,34 +114,74 @@ namespace RunAsService {
                             return;
                         }
 
-                        if(executablePathIndex > 2) { // Valid ExecutablePathIndex's: 0, 1, 2 (leave room for Name or display name)
-                            Console.WriteLine("You included too many parameters before specifying the executable path, perhaps your service name or display name contains spaces and you didn't put quotes around them. Instead of the executable path I found this: " + actionParameters[2]);
+                        if (executablePathIndex > 3) {
+                            // 0 is Service Name, 1 is the Display Name, working dir can be either 1 or 2, ExecutablePathIndex can be 0, 1, 2, 3
+                            Console.WriteLine("You included too many parameters before specifying the executable path, perhaps your service name or display name contains spaces and you didn't put quotes around them. ");
                             Console.WriteLine();
                             WriteHelpMessage();
                             return;
                         }
 
+
                         var executablePath = actionParameters[executablePathIndex];
-                        var executableArguments = string.Join(" ", ToArray(Skip(actionParameters, executablePathIndex + 1)));
-                        var executablePathAndArguments = executablePath + " " + executableArguments;
+                        // var executableArguments = string.Join(" ", ToArray(Skip(actionParameters, executablePathIndex + 1)));
+                        // Use the raw commandline instead of processed one like above. This will preserve the quotes: ""
+                        string cmdLine = @Environment.CommandLine;
+                        string executableFullPath = Path.GetFullPath(executablePath);
+                        var startArg = cmdLine.IndexOf(executablePath) + executablePath.Length; // Start of raw arguments, leading space included.
+                        var executablePathAndArguments = executableFullPath + cmdLine.Substring(startArg);
 
-                        string serviceName;
-                        string serviceDisplayName;
+                        
 
-                        if(executablePathIndex == 0) {
-                            serviceName = serviceDisplayName = Path.GetFileNameWithoutExtension(executablePath);
-                        } else if(executablePathIndex == 1) {
-                            serviceName = serviceDisplayName = actionParameters[0];
-                        } else if(executablePathIndex == 2) {
-                            serviceName = actionParameters[0];
-                            serviceDisplayName = actionParameters[1];
-                        } else {
-                            WriteHelpMessage();
-                            return;
+                        string serviceName = "";
+                        string serviceDisplayName = "";
+                        switch (executablePathIndex) {
+                            case 0:
+                                // no argument before the executable.
+                                serviceName = serviceDisplayName = Path.GetFileNameWithoutExtension(executablePath);
+                                break;
+
+                            case 1:
+                                // 1 arg before executable
+                                if (StringIsPath(actionParameters[0])) {
+                                    // WorkDir Executable
+                                    serviceName = serviceDisplayName = Path.GetFileNameWithoutExtension(executablePath);
+                                    workDir = actionParameters[0];
+                                }
+                                else {
+                                    // serviceName Executable
+                                    serviceName = serviceDisplayName = actionParameters[0];
+                                }
+                                break;
+
+                            case 2:
+                                // 2 args before the executable
+                                // ServiceName DisplayName/WorkDir Executable
+                                serviceName = actionParameters[0];
+                                if (StringIsPath(actionParameters[1])) {
+                                    workDir = actionParameters[1];
+                                    serviceDisplayName = serviceName;
+                                }
+                                else {
+                                    serviceDisplayName = actionParameters[1];
+                                }
+                                break;
+
+                            case 3:
+                                // ServiceName DisplayName WorkDir Executable
+                                serviceName = actionParameters[0];
+                                serviceDisplayName = actionParameters[1];
+                                workDir = actionParameters[2];
+                                break;
                         }
-
                         var thisAppPath = GetThisExecutableFullPath();
                         var executableProxyPath = thisAppPath + " " + CONST_RunAsServiceAction + " ";
+
+                        if (workDir != ""){
+                            workDir = (workDir[0] == '"') ? workDir : '"' + workDir + '"'; // Add the quotes if it's not there yet.
+                            // Add the workDir as the 1st parameter and the executable and args follows
+                            executablePathAndArguments = workDir + " " + executablePathAndArguments;
+                        }
 
                         if(Any(ServiceController.GetServices(), o => o.ServiceName.Trim().ToLower() == serviceName.Trim().ToLower())) {
                             Console.WriteLine("A service with that name already exists, you must first uninstall the existing service.");
@@ -237,21 +282,39 @@ namespace RunAsService {
                 case CONST_RunAsServiceAction: // NOTE, this is an internal action used by the installed services, not called directly by the users
                     #region
                     {
-                        if(actionParameters.Length == 0) {
+                        // actionParameters: 0 could be the working dir, console executable is 0 or 1, then follow by args.
+                        if (actionParameters.Length == 0 ) {
                             WriteHelpMessage();
                             return;
                         }
 
-                        if(!IsExecutablePath(actionParameters[0])) {
-                            Console.WriteLine($"The first parameter after '{CONST_RunAsServiceAction}' must be the path to the console application, the path you specified was not found: {actionParameters[0]}");
+                        string executablePath;
+
+                        var prompt = $"The frist and second parameter after '{CONST_RunAsServiceAction}' should follow this syntax: [workingPath] fullPathToExecutable, but there was a problem in the paths.";
+                        var workDir = ""; var skipArg = 1;
+
+                        if (StringIsPath(actionParameters[0]) && actionParameters.Length > 1){
+                            // WorkDir Executable...
+                            workDir = actionParameters[0];
+                            executablePath = actionParameters[1];
+                            skipArg = 2;
+                        }
+                        else {
+                            // Executable
+                            executablePath = actionParameters[0];
+                        }
+
+                        if (!IsExecutablePath(executablePath)) {
+                            Console.WriteLine(prompt);
                             WriteHelpMessage();
                             return;
                         }
+                        // If empty, get the workDir from executable
+                        workDir = ( workDir=="" ? Path.GetDirectoryName(executablePath) : workDir );
+                        
+                        var arguments = ToArray(Skip(actionParameters, skipArg));
 
-                        var executablePath = actionParameters[0];
-                        var arguments = ToArray(Skip(actionParameters, 1));
-
-                        ServiceBase.Run(new Service(executablePath, arguments));
+                        ServiceBase.Run(new Service(executablePath, arguments, workDir));
                     }
                     break;
                     #endregion
@@ -290,7 +353,7 @@ remain permanently. If you do end up moving this tool use the
     Or specifying incorrect paramters will bring you to this help 
     screen you are currently reading.
 
-{executableName} install [Name] [Display Name] PathToExecutable [Args]
+{executableName} install [Name] [Display Name] [PathToWorkDirectory] PathToExecutable [Args]
     Name
         The name of the service, if none is specified the name will 
         default to the name of the executable.
@@ -309,6 +372,17 @@ remain permanently. If you do end up moving this tool use the
         Generally the display name is longer and more descriptive than 
         the name and gives the user a better idea of what the service 
         is and/or does.
+
+    PathToWorkDirectory
+        The working directory you want the application to work on.
+        In Windows usually the executable cannot write any data to it's
+        own location. So setting a different working path allows the
+        console to read/write data in that specified location.
+
+        It should be quoted like ""c:\\my working path""
+
+        If not specify the working directory, then the program will
+        assume it to be where the executable is.
 
     PathToExecutable
         The location of the application you want to run as a service.
@@ -342,17 +416,36 @@ EXAMPLES
 {executableName} install ""c:\my apps\Myapp.exe""
         Installs Myapp as a service called 'Myapp'
 
+{executableName} install ""c:\my data path"" ""c:\my apps\Myapp.exe""
+        Installs Myapp as a service called 'Myapp' with working directory
+        as 'c:\my data path'
+
 {executableName} install ""c:\my apps\Myapp.exe"" arg0 arg1
         Installs Myapp as a service called 'Myapp' passes
         the arg0 and arg1 to Myapp.exe when it's started.
 
+{executableName} install ""c:\my data path"" ""c:\my apps\Myapp.exe"" arg0 arg1
+        Installs Myapp as a service called 'Myapp' passes the arg0
+        and arg1 to Myapp.exe when it's started, using 'c:\my data path'
+        as the working directory.
+
 {executableName} install ""My Service"" ""c:\my apps\Myapp.exe""
         Installs Myapp as a service called ""My Service""
+
+{executableName} install ""My Service"" ""c:\my data path"" ""c:\my apps\Myapp.exe""
+        Installs Myapp as a service called ""My Service""
+        using 'c:\my data path' as the working directory.
 
 {executableName} install ""My Service"" ""My Super Cool Service"" ""c:\my apps\Myapp.exe""
         Installs Myapp as a service internally called ""My Service""
         when using commands like 'net start' and 'net stop' and shows
         up as ""My Super Cool Service"" in Window's services list.
+
+{executableName} install ""My Service"" ""My Super Cool Service"" ""c:\my data path"" ""c:\my apps\Myapp.exe""
+        Installs Myapp as a service internally called ""My Service""
+        when using commands like 'net start' and 'net stop' and shows
+        up as ""My Super Cool Service"" in Window's services list.
+        Its working directory will be 'c:\my data path'
 
 {executableName} uninstall ""My Service""
         Uninstalls the service.
@@ -370,6 +463,9 @@ and
     net stop ""My Service""
 
 Where ""My Service"" would be replaced with the name of your service.
+
+Or you can run the ""Services"" in 'Control Panel->Administrative Tools'
+to start/stop the service by name.
 
 CREDITS
 
@@ -504,12 +600,14 @@ information visit RunAsService.com. Thank you.
 
     public partial class Service : ServiceBase {
         private Process process;
+        private string workingDirectory;
         private string consoleApplicationExecutablePath;
         private string[] arguments;
 
-        public Service(string consoleApplicationExecutablePath, string[] arguments) {
+        public Service(string consoleApplicationExecutablePath, string[] arguments, string workDir="") {
             this.consoleApplicationExecutablePath = consoleApplicationExecutablePath;
             this.arguments = arguments;
+            this.workingDirectory = workDir;
         }
 
         protected override void OnStart(string[] args) {
@@ -518,6 +616,7 @@ information visit RunAsService.com. Thank you.
                 CreateNoWindow = true,
                 ErrorDialog = false,
                 WindowStyle = ProcessWindowStyle.Hidden,
+                WorkingDirectory = workingDirectory,
             };
 
             process = Process.Start(oProcessStartInfo);
