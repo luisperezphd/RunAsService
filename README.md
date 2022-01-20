@@ -71,7 +71,7 @@ RunAsService fixservices
 ## EXAMPLES
 
 * `RunAsService install "c:\my apps\Myapp.exe"` <br>
-        Installs Myapp as a service called 'Myapp'
+        Installs Myapp as a service called 'Myapp'<br>
         
 * `RunAsService install "c:\my apps\Myapp.exe" arg0 arg1` <br>
         Installs Myapp as a service called 'Myapp' passes
@@ -79,7 +79,7 @@ RunAsService fixservices
 
 * `RunAsService install "c:\my data\path" "c:\my apps\Myapp.exe" arg0 arg1` <br>
         Installs Myapp as a service called 'Myapp' passes
-        the arg0 and arg1 to Myapp.exe when it's started.
+        the arg0 and arg1 to Myapp.exe when it's started.<br>
         Use "c:\my data\path" as the working directory.
         
 * `RunAsService install "My Service" "c:\my apps\Myapp.exe"` <br>
